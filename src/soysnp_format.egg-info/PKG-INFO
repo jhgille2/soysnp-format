@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: soysnp-format
+Version: 0.1.0
+Summary: Detect and translate allele-encoding formats (Illumina A/B vs forward strand) in soybean SNP array exports
+Author: soysnp-format contributors
+License: MIT
+Keywords: soybean,SNP,genotyping,Illumina,GenomeStudio,SoySNP50K,BARCSoySNP6K
+Requires-Python: >=3.9
+Description-Content-Type: text/markdown
+Provides-Extra: dev
+Requires-Dist: pytest>=7; extra == "dev"

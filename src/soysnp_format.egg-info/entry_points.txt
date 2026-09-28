@@ -1,0 +1,2 @@
+[console_scripts]
+soysnp-format = soysnp_format.cli:main

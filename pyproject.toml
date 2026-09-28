@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soysnp-format"
+version = "0.1.0"
+description = "Detect and translate allele-encoding formats (Illumina A/B vs forward strand) in soybean SNP array exports"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "soysnp-format contributors" }]
+keywords = ["soybean", "SNP", "genotyping", "Illumina", "GenomeStudio", "SoySNP50K", "BARCSoySNP6K"]
+
+[project.scripts]
+soysnp-format = "soysnp_format.cli:main"
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+soysnp_format = ["tables/*.csv"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

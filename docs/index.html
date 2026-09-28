@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>soysnp-format — soybean SNP array allele encoding tool</title>
+<style>
+  :root { --ink: #1a1a1a; --muted: #5c5c5c; --line: #ddd; --accent: #2f6f3e; --warn: #8a5a00; --bg: #fafafa; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+         color: var(--ink); background: var(--bg); margin: 0; line-height: 1.5; }
+  header { background: #fff; border-bottom: 1px solid var(--line); padding: 1.2rem 1.5rem; }
+  header h1 { margin: 0 0 0.25rem; font-size: 1.35rem; }
+  header p { margin: 0; color: var(--muted); max-width: 60rem; }
+  main { max-width: 60rem; margin: 0 auto; padding: 1.5rem; }
+  section.card { background: #fff; border: 1px solid var(--line); border-radius: 8px;
+                 padding: 1.25rem 1.5rem; margin-bottom: 1.25rem; }
+  section.card h2 { margin: 0 0 0.75rem; font-size: 1.05rem; }
+  #drop { border: 2px dashed var(--line); border-radius: 8px; padding: 2rem; text-align: center;
+          color: var(--muted); cursor: pointer; }
+  #drop:hover, #drop.over { border-color: var(--accent); color: var(--ink); }
+  .row { display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center; margin-top: 0.75rem; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 6px;
+           padding: 0.55rem 1.1rem; font-size: 0.95rem; cursor: pointer; }
+  button:disabled { background: #aaa; cursor: not-allowed; }
+  button.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+  select, input[type="file"] { font-size: 0.95rem; padding: 0.4rem; }
+  label.opt { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.92rem; color: var(--muted); }
+  .status { font-size: 0.9rem; color: var(--muted); margin-top: 0.6rem; }
+  .verdict { font-size: 1.15rem; font-weight: 600; }
+  .conf-high { color: var(--accent); } .conf-moderate { color: var(--warn); } .conf-low { color: #a33; }
+  table.counts { border-collapse: collapse; margin: 0.75rem 0; font-size: 0.92rem; }
+  table.counts td { padding: 0.2rem 0.75rem 0.2rem 0; }
+  table.counts td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .note { background: #fff8e6; border-left: 3px solid var(--warn); padding: 0.5rem 0.75rem;
+          margin: 0.5rem 0; font-size: 0.9rem; }
+  pre.preview { background: #f4f4f4; border: 1px solid var(--line); border-radius: 6px;
+                padding: 0.75rem; overflow-x: auto; font-size: 0.82rem; max-height: 16rem; }
+  footer { max-width: 60rem; margin: 0 auto; padding: 0 1.5rem 2rem; color: var(--muted); font-size: 0.85rem; }
+  footer a { color: var(--accent); }
+  .hidden { display: none; }
+</style>
+</head>
+<body>
+<header>
+  <h1>soysnp-format</h1>
+  <p>Detect and translate allele encodings (Illumina A/B vs forward strand) in soybean
+     SNP array exports &mdash; entirely in your browser. Files never leave your computer.
+     Bundled chip tables: SoySNP50K (60,800 SNPs) and BARCSoySNP6K (5,989 SNPs).</p>
+</header>
+
+<main>
+  <section class="card">
+    <h2>1. Load a genotype file</h2>
+    <div id="drop">Drop a GenomeStudio Final Report or SNP matrix here, or click to choose a file.</div>
+    <input type="file" id="file" class="hidden" accept=".txt,.tsv,.csv,.text">
+    <div class="row">
+      <label class="opt">Layout
+        <select id="layout">
+          <option value="auto">auto-detect</option>
+          <option value="final-report">GenomeStudio Final Report</option>
+          <option value="wide">wide matrix</option>
+        </select>
+      </label>
+      <button class="ghost" id="example">Load example file</button>
+    </div>
+    <div class="status" id="fileStatus">No file loaded.</div>
+  </section>
+
+  <section class="card">
+    <h2>2. Detect the allele encoding</h2>
+    <div class="row">
+      <button id="detectBtn" disabled>Detect format</button>
+    </div>
+    <div id="detectOut" class="hidden">
+      <p class="verdict">Likely format: <span id="verdict"></span>
+        <span id="confidence"></span></p>
+      <table class="counts">
+        <tr><td>SNPs examined</td><td class="num" id="cN"></td></tr>
+        <tr><td>with A/B-only evidence (a &lsquo;B&rsquo; call seen)</td><td class="num" id="cAb"></td></tr>
+        <tr><td>with forward-only evidence (C/G/T seen)</td><td class="num" id="cFwd"></td></tr>
+        <tr><td>ambiguous (only &lsquo;A&rsquo; or no calls)</td><td class="num" id="cAmb"></td></tr>
+        <tr><td>conflicting (both B and C/G/T seen)</td><td class="num" id="cConf"></td></tr>
+        <tr><td>inconsistent with both encodings</td><td class="num" id="cInc"></td></tr>
+      </table>
+      <div class="status" id="declaredLine"></div>
+      <div class="status" id="chipLine"></div>
+      <div id="notes"></div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>3. Convert between encodings</h2>
+    <div class="row">
+      <label class="opt">From
+        <select id="fromFmt">
+          <option value="auto">auto-detect</option>
+          <option value="AB">A/B</option>
+          <option value="FORWARD">Forward</option>
+        </select>
+      </label>
+      <label class="opt">To
+        <select id="toFmt">
+          <option value="FORWARD">Forward</option>
+          <option value="AB">A/B</option>
+        </select>
+      </label>
+      <label class="opt">Output layout
+        <select id="outLayout">
+          <option value="wide">wide matrix</option>
+          <option value="long">long table</option>
+        </select>
+      </label>
+    </div>
+    <div class="row">
+      <label class="opt"><input type="checkbox" id="skipUnknown"> skip SNPs missing from the chip tables</label>
+      <label class="opt"><input type="checkbox" id="badMissing"> turn invalid genotypes into missing calls</label>
+    </div>
+    <div class="row">
+      <button id="convertBtn" disabled>Convert</button>
+      <a id="download" class="hidden" href="#"><button type="button">Download result</button></a>
+    </div>
+    <div class="status" id="convertStatus"></div>
+    <pre class="preview hidden" id="preview"></pre>
+  </section>
+</main>
+
+<footer>
+  <p>Lookup tables derived from the published Illumina A/B allele rule applied to SoySNP50K
+     Table&nbsp;S1 (Song et&nbsp;al. 2013), joined to SoyBase Wm82 marker files &mdash; not read
+     from the official (non-public) chip manifests. See the
+     <a href="https://github.com/jhgille2/soysnp-format">soysnp-format repository</a>
+     for derivation details, provenance, and the matching command-line tool.</p>
+</footer>
+
+<script src="soysnp.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

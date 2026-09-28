@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+.eggs/
+.pytest_cache/
+.venv/
+venv/
+# Downloaded build inputs (see build/README.md for sources/URLs); the build
+# script and docs are committed, the binaries are not.
+/build/*.xlsx
+/build/*.gff3.gz
