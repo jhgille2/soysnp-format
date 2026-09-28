@@ -123,6 +123,43 @@ function makeGenotypeData(calls, samples, { declaredFormat = null, layout = null
   return { calls, samples: [...samples], snps: [...calls.keys()], declaredFormat, layout, source };
 }
 
+/** Like normalizeGenotype, but returns null for garbage instead of throwing. */
+function tryGenotype(token) {
+  try { return normalizeGenotype(token); } catch { return null; }
+}
+
+/**
+ * Parse a matrix-style Final Report [Data] section: the first data row holds
+ * sample IDs (with an empty stub cell) and each following row holds one SNP
+ * ID plus one genotype call per sample (e.g. AA/AB/BB). Returns a
+ * GenotypeData, or null if the header row does not look like a sample-ID row.
+ */
+function readFinalReportMatrix(source, lines, dataStart, delim, columns) {
+  if (columns.length < 2) return null;
+  const stub = columns[0].trim().toLowerCase();
+  const stubOk = !stub || ["snp", "snp name", "snpname", "marker", "locus", "sample", "sample id"].includes(stub);
+  if (!stubOk) return null;
+  const sampleCells = columns.slice(1);
+  const samples = sampleCells.map(c => c.trim()).filter(Boolean);
+  if (!samples.length) return null;
+  const genoLike = sampleCells.filter(c => tryGenotype(c.trim()) !== null).length;
+  if (genoLike > sampleCells.length / 2) return null;
+
+  const dataRows = parseDelimited(lines.slice(dataStart + 1).join("\n"), delim);
+  const calls = new Map();
+  for (const row of dataRows) {
+    if (!row.length || !row.some(c => c.trim())) continue;
+    const snp = row[0].trim();
+    if (!snp || snp.startsWith("[")) continue;
+    if (!calls.has(snp)) calls.set(snp, new Map());
+    row.slice(1).forEach((token, i) => {
+      if (i < samples.length) calls.get(snp).set(samples[i], normalizeGenotype(token.trim()));
+    });
+  }
+  if (!calls.size) return null;
+  return makeGenotypeData(calls, samples, { declaredFormat: null, layout: "final-report", source });
+}
+
 function readFinalReport(text, source = "") {
   const lines = text.split(/\r?\n/);
   let dataStart = -1;
@@ -149,6 +186,8 @@ function readFinalReport(text, source = "") {
     if (a2Col < 0) a2Col = null;
   }
   if (snpCol === null || sampleCol === null || a1Col === null || a2Col === null) {
+    const matrix = readFinalReportMatrix(source, lines, dataStart, delim, columns);
+    if (matrix) return matrix;
     throw new Error("Final Report header lacks SNP Name / Sample ID / Allele1 / Allele2 columns");
   }
   const declared = declaredFormatFromHeader(columns);
@@ -174,7 +213,12 @@ function looksLikeSnpId(token, snpSet) {
 
 function readWideMatrix(text, snpSet = null, source = "") {
   const delim = sniffDelimiter(text.slice(0, 65536));
-  const rows = parseDelimited(text, delim).map(r => r.map(c => c.trim()));
+  let rows = parseDelimited(text, delim).map(r => r.map(c => c.trim()));
+  // tolerate a GenomeStudio [Header]/[Data] preamble: parse from [Data]
+  if (rows.length && rows[0].length && rows[0][0].startsWith("[")) {
+    const di = rows.findIndex(r => r.length && r[0].trim().toLowerCase() === "[data]");
+    if (di >= 0) rows = rows.slice(di + 1);
+  }
   if (rows.length < 2 || rows[0].length < 2) {
     throw new Error("wide matrix needs at least 2 rows and 2 columns");
   }
@@ -223,7 +267,7 @@ function readWideMatrix(text, snpSet = null, source = "") {
 
 function readGenotypes(text, layout = "auto", snpSet = null, source = "") {
   const head = text.slice(0, 4096).toLowerCase();
-  const isFinalReport = head.includes("[data]") && head.includes("snp name");
+  const isFinalReport = head.includes("[data]") && head.includes("[header]");
   if (layout === "auto") layout = isFinalReport ? "final-report" : "wide";
   if (layout === "final-report") return readFinalReport(text, source);
   if (layout === "wide") return readWideMatrix(text, snpSet, source);

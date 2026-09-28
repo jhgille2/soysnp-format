@@ -46,6 +46,12 @@ def test_ss_id_alias(lookup50k):
     assert lookup50k.alleles("ss715578672") == lookup50k.alleles("BARC_1.01_Gm01_2033_G_A")
 
 
+def test_manifest_short_name_alias(lookup50k):
+    # GenomeStudio exports / manifests use the BARC id without the prefix
+    assert "Gm01_2033_G_A" in lookup50k
+    assert lookup50k.alleles("Gm01_2033_G_A") == lookup50k.alleles("BARC_1.01_Gm01_2033_G_A")
+
+
 def test_no_ambiguous_snp_types(lookup50k):
     # Empirical chip property: SoySNP50K contains no A/T or C/G SNPs, so the
     # Illumina A/B rule needs no sequence walking anywhere on the chip.

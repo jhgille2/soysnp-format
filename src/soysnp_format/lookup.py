@@ -20,9 +20,10 @@ The mappings were derived from the published Illumina A/B allele rule applied
 to the SoySNP50K Table S1 sequences (Song et al. 2013), joined to SoyBase
 Wm82 GFF3 marker files for ss IDs and current positions. Rows are keyed by
 the BARC SNP id (e.g. ``BARC_1.01_Gm01_2033_G_A``) with the dbSNP ss ID
-(e.g. ``ss715578672``) as an alias, so genotype files using either naming
-scheme match. See ``build/README.md`` for the full derivation, provenance,
-and validation status.
+(e.g. ``ss715578672``) and the manifest-style short name (e.g.
+``Gm01_2033_G_A``, as used in GenomeStudio exports) as aliases, so genotype
+files using any of these naming schemes match. See ``build/README.md`` for
+the full derivation, provenance, and validation status.
 
 Custom tables
 -------------
@@ -118,6 +119,12 @@ def read_lookup_csv(path, name=None):
             if a not in "ACGT" or b not in "ACGT":
                 raise ValueError(f"{path}: SNP {snp}: forward alleles must be A/C/G/T")
             mapping[snp] = (a, b)
+            # alias: manifest/GenomeStudio exports use the BARC id without the
+            # 'BARC_1.01_' prefix (e.g. 'Gm01_1013695_A_G')
+            if snp.startswith("BARC_1.01_"):
+                short = snp[len("BARC_1.01_"):]
+                if short and short not in mapping and short not in aliases:
+                    aliases[short] = snp
             if ss_col:
                 alias = (row.get(ss_col) or "").strip()
                 if alias and alias not in mapping and alias not in aliases:

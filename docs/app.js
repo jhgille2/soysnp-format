@@ -23,6 +23,7 @@ async function ensureLookup() {
       const map = new Map();
       for (const [shortId, ssId, pair] of rows) {
         map.set("BARC_1.01_" + shortId, pair);
+        map.set(shortId, pair); // manifest/GenomeStudio naming (no prefix)
         if (ssId) map.set(ssId, pair);
       }
       lookup = map;

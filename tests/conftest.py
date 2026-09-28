@@ -56,3 +56,16 @@ snp1\tsample2\tA\tG\t0.8
 snp2\tsample1\tC\tT\t0.9
 snp2\tsample2\tC\tC\t0.7
 """
+
+# Matrix-style Final Report [Data] section (GenomeStudio SNP-table export):
+# sample IDs across the first row, one SNP per row. CRLF line endings, as
+# written by GenomeStudio on Windows.
+FINAL_REPORT_MATRIX = (
+    "[Header]\r\n"
+    "GSGT Version\t2.0.5\r\n"
+    "Content\t\tBARCSoySNP6k_11691901_A.bpm\r\n"
+    "[Data]\r\n"
+    "\tsample1\tsample2\tsample3\r\n"
+    "snp1\tAA\tAB\tBB\r\n"
+    "snp2\tAB\tBB\t--\r\n"
+)

@@ -11,9 +11,11 @@ apart, reports uncertainty honestly, and converts between encodings using
 SNP-specific lookup tables.
 
 Bundled chip tables: **SoySNP50K** (60,800 SNPs) and **BARCSoySNP6K**
-(5,989 SNPs), with both BARC SNP ids and dbSNP ss ids recognized. See
-[`build/README.md`](build/README.md) for how the tables were derived and
-their provenance.
+(5,989 SNPs), with BARC SNP ids, manifest-style short names (e.g.
+`Gm01_1013695_A_G`), and dbSNP ss ids all recognized. See
+[`build/README.md`](build/README.md) for how the tables were derived, their
+provenance, and validation status (the 6K mappings were checked SNP-by-SNP
+against the official BARCSoySNP6K manifest: 5,392/5,392 agree).
 
 ## Installation
 

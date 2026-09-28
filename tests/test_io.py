@@ -1,6 +1,6 @@
 from soysnp_format.io import read_genotypes
 
-from conftest import AB_WIDE, FORWARD_WIDE, FINAL_REPORT_AB, FINAL_REPORT_FORWARD
+from conftest import AB_WIDE, FORWARD_WIDE, FINAL_REPORT_AB, FINAL_REPORT_FORWARD, FINAL_REPORT_MATRIX
 
 
 def _write(tmp_path, name, content):
@@ -55,6 +55,28 @@ def test_read_final_report_forward(tmp_path):
     data = read_genotypes(_write(tmp_path, "r.txt", FINAL_REPORT_FORWARD))
     assert data.declared_format == "FORWARD"
     assert data.calls["snp2"]["sample1"] == ("C", "T")
+
+
+def test_read_final_report_matrix(tmp_path):
+    # matrix-style [Data]: sample IDs across the first row, SNPs as rows
+    data = read_genotypes(_write(tmp_path, "r.txt", FINAL_REPORT_MATRIX))
+    assert data.layout == "final-report"
+    assert data.declared_format is None
+    assert data.samples == ["sample1", "sample2", "sample3"]
+    assert data.snps == ["snp1", "snp2"]
+    assert data.calls["snp1"]["sample1"] == ("A", "A")
+    assert data.calls["snp1"]["sample2"] == ("A", "B")
+    assert data.calls["snp2"]["sample3"] is None
+
+
+def test_read_final_report_matrix_forced_wide(tmp_path):
+    # explicit wide layout also tolerates the [Header]/[Data] preamble
+    from soysnp_format.io import read_wide_matrix
+    data = read_wide_matrix(_write(tmp_path, "r.txt", FINAL_REPORT_MATRIX),
+                            snp_sets=({"snp1", "snp2"},))
+    assert data.layout == "wide"
+    assert data.samples == ["sample1", "sample2", "sample3"]
+    assert data.calls["snp2"]["sample2"] == ("B", "B")
 
 
 def test_read_final_report_rejects_non_report(tmp_path):

@@ -80,8 +80,67 @@ def _declared_format_from_header(columns):
     return None
 
 
+def _try_genotype(token):
+    """Like :func:`normalize_genotype`, but returns ``None`` for garbage."""
+    try:
+        return normalize_genotype(token)
+    except ValueError:
+        return None
+
+
+def _read_final_report_matrix(path, lines, data_start, delim, columns):
+    """Parse a matrix-style Final Report ``[Data]`` section.
+
+    GenomeStudio can export the ``[Data]`` section as a SNP x sample matrix
+    instead of the long SNP Name / Sample ID / Allele1 / Allele2 layout: the
+    first data row holds sample IDs (with an empty stub cell), and each
+    following row holds one SNP ID plus one genotype call per sample
+    (e.g. ``AA``/``AB``/``BB``).
+
+    Returns a :class:`GenotypeData` or ``None`` if the header row does not
+    look like a sample-ID row.
+    """
+    if len(columns) < 2:
+        return None
+    stub, sample_cells = columns[0].strip(), columns[1:]
+    # the stub cell must be empty or a stub label, not a SNP id or a call
+    if stub and stub.lower() not in ("snp", "snp name", "snpname", "marker",
+                                     "locus", "sample", "sample id"):
+        return None
+    samples = [c.strip() for c in sample_cells if c.strip()]
+    if not samples:
+        return None
+    # guard: if the "sample" cells are mostly genotype calls, this row is a
+    # data row, not a header row -> not a matrix-style report
+    geno_like = sum(1 for c in sample_cells
+                    if _try_genotype(c.strip()) is not None)
+    if geno_like > len(sample_cells) / 2:
+        return None
+
+    calls = {}
+    reader = csv.reader(lines[data_start + 1:], delimiter=delim)
+    for row in reader:
+        if not row or not any(c.strip() for c in row):
+            continue
+        snp = row[0].strip()
+        if not snp or snp.startswith("["):
+            continue
+        calls[snp] = {}
+        for sample, token in zip(samples, row[1:]):
+            calls[snp][sample] = normalize_genotype(token.strip())
+    if not calls:
+        return None
+    return GenotypeData(calls, samples, declared_format=None,
+                        layout="final-report", source=str(path))
+
+
 def read_final_report(path, encoding="utf-8-sig"):
-    """Parse a GenomeStudio Final Report file."""
+    """Parse a GenomeStudio Final Report file.
+
+    Handles both the long SNP Name / Sample ID / Allele1 / Allele2 layout
+    and the matrix-style ``[Data]`` section (sample IDs across the first
+    row, one SNP per row).
+    """
     with open(path, "r", encoding=encoding, newline="") as fh:
         text = fh.read()
     lines = text.splitlines()
@@ -114,6 +173,10 @@ def read_final_report(path, encoding="utf-8-sig"):
         a2_col = next((i for i, c in enumerate(columns)
                        if re.match(r"(?i)^allele\s*2\b", c.strip())), None)
     if snp_col is None or sample_col is None or a1_col is None or a2_col is None:
+        matrix = _read_final_report_matrix(
+            path, lines, data_start, delim, columns)
+        if matrix is not None:
+            return matrix
         raise ValueError(
             f"{path}: Final Report data header lacks SNP Name / Sample ID / "
             f"Allele1 / Allele2 columns (saw: {columns[:8]}...)"
@@ -161,6 +224,12 @@ def read_wide_matrix(path, snp_sets=(), encoding="utf-8-sig"):
         delim = _sniff_delimiter(sample_text)
         reader = csv.reader(fh, delimiter=delim)
         rows = [[c.strip() for c in row] for row in reader if any(c.strip() for c in row)]
+    # tolerate a GenomeStudio [Header]/[Data] preamble: parse from [Data]
+    if rows and rows[0] and rows[0][0].startswith("["):
+        for i, r in enumerate(rows):
+            if r and r[0].strip().lower() == "[data]":
+                rows = rows[i + 1:]
+                break
     if len(rows) < 2 or len(rows[0]) < 2:
         raise ValueError(f"{path}: wide matrix needs at least 2 rows and 2 columns")
 
@@ -221,7 +290,8 @@ def read_genotypes(path, layout="auto", snp_sets=(), encoding="utf-8-sig"):
     """
     with open(path, "r", encoding=encoding) as fh:
         head = fh.read(4096)
-    is_final_report = "[data]" in head.lower() and "snp name" in head.lower()
+    head_low = head.lower()
+    is_final_report = "[data]" in head_low and "[header]" in head_low
     if layout == "auto":
         layout = "final-report" if is_final_report else "wide"
     if layout == "final-report":

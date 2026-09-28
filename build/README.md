@@ -63,14 +63,20 @@ in this directory so the tables can be rebuilt without re-downloading.
 
 ## Caveats
 
-- The mappings are **derived from the published Illumina rule**, not read from
+- The mappings were **derived from the published Illumina rule**, not read from
   the official chip manifests (which are not publicly available). The rule is
   the same deterministic procedure Illumina uses to generate manifest A/B
   assignments, and the derivation was validated against the worked examples in
-  the technical note itself (Tables 1–3), but it has not been checked
-  SNP-by-SNP against the official SoySNP50K/BARCSoySNP6K manifests.
-- If you have access to the official manifests, the strongest validation is:
-  for each SNP, compare the manifest's allele-A/allele-B probe sequences
-  against the `a_forward`/`b_forward` columns here.
+  the technical note itself (Tables 1–3).
+- **Manifest validation (2026-09-28).** The BARCSoySNP6K mappings were checked
+  SNP-by-SNP against the official `BARCSoySNP6k_11691901_A` manifest: for each
+  of the 5,392 SNPs present in both, the manifest's `SNP` column `[X/Y]`
+  (allele A / allele B on the assay's `IlmnStrand`) equals the table's
+  `(a_forward, b_forward)` or its strand complement, with the A/B labels never
+  swapped. Result: **5,392 agree, 0 disagree** (11 manifest SNPs have no
+  counterpart in this table; 597 table SNPs are not on that manifest version).
+  Re-run with `python validate_against_manifest.py MANIFEST.csv --table
+  ../src/soysnp_format/tables/soysnp6k.csv`. The SoySNP50K table uses the same
+  derivation procedure but has not been checked against its manifest.
 - Positions are Wm82.gnm2 (falling back to gnm1 for the 244 unmapped SNPs);
   the A/B → forward *allele* mapping does not depend on the assembly.
