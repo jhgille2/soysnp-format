@@ -86,7 +86,7 @@ A static browser version lives in `docs/` (served via GitHub Pages): drop a
 genotype file onto the page to detect its encoding and convert it, with no
 installation and no data leaving your computer. The page embeds the same
 detection/conversion logic as the Python package (`docs/soysnp.js`, tested
-headlessly in `node`) and loads the bundled SNP lookup table (`docs/data/lookups.json`)
+headlessly in `node`) and loads the bundled SNP lookup table (`docs/assets/lookups.json`)
 on first use.
 
 ## As a library

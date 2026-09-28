@@ -17,7 +17,7 @@ let fileName = "";
 async function ensureLookup() {
   if (lookup) return lookup;
   if (!lookupLoading) {
-    lookupLoading = fetch("data/lookups.json").then(async (resp) => {
+    lookupLoading = fetch("assets/lookups.json").then(async (resp) => {
       if (!resp.ok) throw new Error(`could not load lookup table (HTTP ${resp.status})`);
       const rows = await resp.json();
       const map = new Map();
