@@ -14,7 +14,8 @@ This directory holds the reproducible build for the SNP-specific Illumina A/B
 
 The `.xlsx` and the two gnm2 GFF3 files were fetched with a browser download
 task; the gnm1 GFF3 was fetched with `curl` after the build showed Table S1
-coordinates match the gnm1 assembly (see below).
+coordinates match the gnm1 assembly (see below). The input files are vendored
+in this directory so the tables can be rebuilt without re-downloading.
 
 ## Method (`build_lookups.py`)
 
